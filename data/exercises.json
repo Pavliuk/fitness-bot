@@ -1,0 +1,23 @@
+[
+  {"name": "Присідання зі штангою", "description": "Базова вправа на ноги та сідниці. Спина пряма, коліна не виходять за носки.", "muscle_group": "legs", "media_url": "https://example.com/video/squat.mp4", "difficulty": "beginner"},
+  {"name": "Випади з гантелями", "description": "Крокуємо вперед, опускаємо коліно майже до підлоги.", "muscle_group": "legs", "media_url": "https://example.com/video/lunges.mp4", "difficulty": "beginner"},
+  {"name": "Румунська тяга", "description": "Тяга на прямих ногах для задньої поверхні стегна та сідниць.", "muscle_group": "legs", "media_url": "https://example.com/video/rdl.mp4", "difficulty": "intermediate"},
+  {"name": "Жим лежачи", "description": "Базова вправа на грудні м'язи, штанга або гантелі.", "muscle_group": "chest", "media_url": "https://example.com/video/bench-press.mp4", "difficulty": "beginner"},
+  {"name": "Віджимання від підлоги", "description": "Класичні віджимання, тіло утримується прямою лінією.", "muscle_group": "chest", "media_url": "https://example.com/video/pushup.mp4", "difficulty": "beginner"},
+  {"name": "Розведення гантелей лежачи", "description": "Ізоляція грудних м'язів, лікті трохи зігнуті.", "muscle_group": "chest", "media_url": "https://example.com/video/dumbbell-fly.mp4", "difficulty": "intermediate"},
+  {"name": "Підтягування", "description": "Базова вправа на спину, хват на ширині плечей.", "muscle_group": "back", "media_url": "https://example.com/video/pullup.mp4", "difficulty": "intermediate"},
+  {"name": "Тяга штанги в нахилі", "description": "Спина пряма, тягнемо штангу до низу живота.", "muscle_group": "back", "media_url": "https://example.com/video/bent-over-row.mp4", "difficulty": "intermediate"},
+  {"name": "Тяга верхнього блоку", "description": "Альтернатива підтягуванням для початківців.", "muscle_group": "back", "media_url": "https://example.com/video/lat-pulldown.mp4", "difficulty": "beginner"},
+  {"name": "Жим гантелей стоячи", "description": "Базова вправа на плечі, корпус зафіксований.", "muscle_group": "shoulders", "media_url": "https://example.com/video/shoulder-press.mp4", "difficulty": "beginner"},
+  {"name": "Махи гантелями в сторони", "description": "Ізоляція середнього пучка дельт.", "muscle_group": "shoulders", "media_url": "https://example.com/video/lateral-raise.mp4", "difficulty": "beginner"},
+  {"name": "Підйом штанги на біцепс", "description": "Лікті зафіксовані біля корпусу.", "muscle_group": "arms", "media_url": "https://example.com/video/bicep-curl.mp4", "difficulty": "beginner"},
+  {"name": "Французький жим", "description": "Ізоляція трицепса лежачи або сидячи.", "muscle_group": "arms", "media_url": "https://example.com/video/triceps-extension.mp4", "difficulty": "intermediate"},
+  {"name": "Планка", "description": "Статична вправа на кор, тримаємо рівну лінію тіла.", "muscle_group": "core", "media_url": "https://example.com/video/plank.mp4", "difficulty": "beginner"},
+  {"name": "Скручування на прес", "description": "Класичні скручування лежачи.", "muscle_group": "core", "media_url": "https://example.com/video/crunches.mp4", "difficulty": "beginner"},
+  {"name": "Підйом ніг у висі", "description": "Просунута вправа на нижній прес.", "muscle_group": "core", "media_url": "https://example.com/video/leg-raise.mp4", "difficulty": "advanced"},
+  {"name": "Берпі", "description": "Комплексна вправа на все тіло та кардіо.", "muscle_group": "full_body", "media_url": "https://example.com/video/burpee.mp4", "difficulty": "intermediate"},
+  {"name": "Комплекс з гирею (свінги)", "description": "Вибухове розгинання тазу, гиря рухається до рівня грудей.", "muscle_group": "full_body", "media_url": "https://example.com/video/kettlebell-swing.mp4", "difficulty": "intermediate"},
+  {"name": "Біг у помірному темпі", "description": "Кардіо-навантаження для витривалості, 20-40 хвилин.", "muscle_group": "cardio", "media_url": "https://example.com/video/jogging.mp4", "difficulty": "beginner"},
+  {"name": "Стрибки на скакалці", "description": "Кардіо для витривалості та координації.", "muscle_group": "cardio", "media_url": "https://example.com/video/jump-rope.mp4", "difficulty": "beginner"},
+  {"name": "Інтервальний біг (HIIT)", "description": "Чергування спринтів і відновлення, 15-25 хвилин.", "muscle_group": "cardio", "media_url": "https://example.com/video/hiit-running.mp4", "difficulty": "advanced"}
+]
