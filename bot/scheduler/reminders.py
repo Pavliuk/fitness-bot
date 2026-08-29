@@ -25,6 +25,13 @@ def _time_matches(now: time, target: time) -> bool:
     return now.hour == target.hour and now.minute == target.minute
 
 
+def _in_quiet_hours(now: time, start: time, end: time) -> bool:
+    """Тихі години можуть переходити через північ (напр. 23:00–07:00)."""
+    if start <= end:
+        return start <= now <= end
+    return now >= start or now <= end
+
+
 async def _tick(bot: Bot, session_maker: async_sessionmaker) -> None:
     now = datetime.now().time().replace(second=0, microsecond=0)
 
@@ -36,7 +43,17 @@ async def _tick(bot: Bot, session_maker: async_sessionmaker) -> None:
         if settings is None:
             continue
 
+        # Нагадування про сон — єдине, що навмисно може прозвучати на межі тихих
+        # годин (це і є повідомлення "час лягати спати"), тому воно не фільтрується.
+        quiet = _in_quiet_hours(now, settings.quiet_start, settings.quiet_end)
+
         try:
+            if settings.sleep_enabled and _time_matches(now, settings.sleep_time):
+                await bot.send_message(user.tg_id, "😴 Час лягати спати! Якісний сон — важлива частина прогресу.")
+
+            if quiet:
+                continue
+
             if settings.workout_enabled and _time_matches(now, settings.workout_time):
                 await bot.send_message(
                     user.tg_id,
