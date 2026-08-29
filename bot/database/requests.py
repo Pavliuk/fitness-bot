@@ -82,21 +82,36 @@ async def get_all_exercises(session: AsyncSession) -> list[Exercise]:
     return list(result.scalars().all())
 
 
+async def get_exercise_by_id(session: AsyncSession, exercise_id: int) -> Exercise | None:
+    return await session.get(Exercise, exercise_id)
+
+
 async def bulk_add_exercises(session: AsyncSession, exercises: list[dict]) -> None:
-    """Наповнює таблицю exercises з assets/exercises.json, якщо вона порожня."""
-    existing = await session.execute(select(Exercise.id).limit(1))
-    if existing.scalar_one_or_none() is not None:
-        return
+    """Синхронізує таблицю exercises з assets/exercises.json: додає нові вправи
+    (за назвою) та оновлює опис/медіа/складність уже існуючих — щоб уточнення
+    техніки виконання підхоплювались і на вже задеплоєній базі, а не лише при
+    першому запуску."""
+    result = await session.execute(select(Exercise))
+    existing_by_name = {e.name: e for e in result.scalars().all()}
+
     for item in exercises:
-        session.add(
-            Exercise(
-                name=item["name"],
-                description=item.get("description", ""),
-                muscle_group=item["muscle_group"],
-                media_url=item.get("media_url"),
-                difficulty=item.get("difficulty", "beginner"),
+        existing = existing_by_name.get(item["name"])
+        if existing is not None:
+            existing.description = item.get("description", existing.description)
+            existing.muscle_group = item["muscle_group"]
+            existing.media_url = item.get("media_url")
+            existing.difficulty = item.get("difficulty", existing.difficulty)
+            session.add(existing)
+        else:
+            session.add(
+                Exercise(
+                    name=item["name"],
+                    description=item.get("description", ""),
+                    muscle_group=item["muscle_group"],
+                    media_url=item.get("media_url"),
+                    difficulty=item.get("difficulty", "beginner"),
+                )
             )
-        )
     await session.commit()
 
 

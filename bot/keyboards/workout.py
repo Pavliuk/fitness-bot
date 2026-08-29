@@ -18,6 +18,7 @@ def checklist_kb(
                     text=f"{mark} {de.exercise.name}",
                     callback_data=f"toggle:{de.id}",
                 ),
+                InlineKeyboardButton(text="ℹ️ Техніка", callback_data=f"exercise_info:{de.exercise.id}"),
                 InlineKeyboardButton(text="✍️ Лог", callback_data=f"logset:{de.id}"),
             ]
         )
