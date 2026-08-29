@@ -15,7 +15,7 @@ class Config:
 
 
 def load_config() -> Config:
-    token = os.getenv("BOT_TOKEN")
+    token = (os.getenv("BOT_TOKEN") or "").strip()
     if not token:
         raise RuntimeError(
             "BOT_TOKEN не знайдено. Скопіюйте .env.example у .env "
@@ -23,6 +23,6 @@ def load_config() -> Config:
         )
     return Config(
         bot_token=token,
-        database_url=os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/fitness.db"),
-        timezone=os.getenv("TIMEZONE", "Europe/Kyiv"),
+        database_url=os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/fitness.db").strip(),
+        timezone=os.getenv("TIMEZONE", "Europe/Kyiv").strip(),
     )
