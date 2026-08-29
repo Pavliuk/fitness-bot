@@ -83,7 +83,7 @@ async def get_all_exercises(session: AsyncSession) -> list[Exercise]:
 
 
 async def bulk_add_exercises(session: AsyncSession, exercises: list[dict]) -> None:
-    """Наповнює таблицю exercises з data/exercises.json, якщо вона порожня."""
+    """Наповнює таблицю exercises з assets/exercises.json, якщо вона порожня."""
     existing = await session.execute(select(Exercise.id).limit(1))
     if existing.scalar_one_or_none() is not None:
         return

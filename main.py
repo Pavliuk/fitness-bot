@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _seed_exercises(session_maker) -> None:
-    """Наповнює таблицю exercises стартовими даними з data/exercises.json."""
-    data_path = Path(__file__).parent / "data" / "exercises.json"
+    """Наповнює таблицю exercises стартовими даними з assets/exercises.json."""
+    data_path = Path(__file__).parent / "assets" / "exercises.json"
     with open(data_path, encoding="utf-8") as f:
         exercises = json.load(f)
     async with session_maker() as session:

@@ -6,7 +6,7 @@ from aiogram.types import FSInputFile, Message
 
 router = Router(name="misc")
 
-_MEME_VIDEO_PATH = Path(__file__).resolve().parents[2] / "data" / "media" / "delay_gryaz.mp4"
+_MEME_VIDEO_PATH = Path(__file__).resolve().parents[2] / "assets" / "media" / "delay_gryaz.mp4"
 
 
 @router.message(F.text == "🎬 Мотиваційне відео")
