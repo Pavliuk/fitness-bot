@@ -13,6 +13,9 @@ from bot.config import load_config
 from bot.database.engine import create_engine_and_sessionmaker, init_db
 from bot.database.requests import bulk_add_exercises
 from bot.handlers import misc, nutrition, progress, reminders, start, workout
+from bot.leadgen import handlers as leadgen_handlers
+from bot.leadgen.scheduler import setup_leadgen_scheduler
+from bot.leadgen.telegram_monitor import LeadMonitor
 from bot.scheduler.reminders import setup_scheduler
 
 logging.basicConfig(
@@ -43,23 +46,49 @@ async def main() -> None:
 
     # session_maker пробрасываем в кожен хендлер через middleware-подібний контекст aiogram
     dp["session_maker"] = session_maker
+    dp["admin_ids"] = config.admin_ids
 
     dp.include_router(start.router)
     dp.include_router(workout.router)
     dp.include_router(nutrition.router)
     dp.include_router(progress.router)
     dp.include_router(reminders.router)
+    dp.include_router(leadgen_handlers.router)
     dp.include_router(misc.router)
 
     scheduler = setup_scheduler(bot, session_maker, config.timezone)
+
+    monitor: LeadMonitor | None = None
+    if config.tg_api_id and config.tg_api_hash and config.admin_ids:
+        monitor = LeadMonitor(config.tg_api_id, config.tg_api_hash, config.tg_session_name, session_maker)
+        setup_leadgen_scheduler(scheduler, bot, session_maker, config.admin_ids, config.timezone)
+    else:
+        logger.info(
+            "Leadgen: модуль лідогенерації вимкнено (заповніть TG_API_ID/TG_API_HASH/ADMIN_IDS у .env, щоб увімкнути)."
+        )
+
     scheduler.start()
 
     logger.info("Бот запускається...")
     try:
         await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
+
+        async def _notify_admins(text: str) -> None:
+            for admin_id in config.admin_ids:
+                try:
+                    await bot.send_message(admin_id, text)
+                except Exception:
+                    logger.exception("Leadgen: не вдалося сповістити admin_id=%s", admin_id)
+
+        if monitor is not None:
+            await monitor.start(_notify_admins)
+            await asyncio.gather(dp.start_polling(bot), monitor.run_until_disconnected())
+        else:
+            await dp.start_polling(bot)
     finally:
         scheduler.shutdown(wait=False)
+        if monitor is not None:
+            await monitor.stop()
         await engine.dispose()
 
 

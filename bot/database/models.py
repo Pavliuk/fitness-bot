@@ -208,6 +208,66 @@ class WeightLog(Base):
     user: Mapped["User"] = relationship(back_populates="weight_logs")
 
 
+class LeadPlatform(str, enum.Enum):
+    """Платформа джерела. Функціонально реалізовано лише telegram — див. bot/leadgen/connectors/."""
+
+    telegram = "telegram"
+    facebook = "facebook"
+    instagram = "instagram"
+    tiktok = "tiktok"
+
+
+class LeadKeyword(Base):
+    """Ключова фраза, за якою шукаємо потенційних клієнтів у публічних джерелах."""
+
+    __tablename__ = "lead_keywords"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    phrase: Mapped[str] = mapped_column(String(128), unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class LeadSource(Base):
+    """Публічне джерело (канал/група/сторінка), яке моніторимо на згадки ключових слів.
+
+    Це мають бути публічні спільноти, у яких бізнес-акаунт користувача сам є
+    учасником (наприклад, локальні дошки оголошень у Telegram) — не приватне
+    листування чужих людей.
+    """
+
+    __tablename__ = "lead_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[LeadPlatform] = mapped_column(Enum(LeadPlatform), default=LeadPlatform.telegram)
+    identifier: Mapped[str] = mapped_column(String(256))  # напр. @kyiv_remont або t.me/+invite
+    platform_chat_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # заповнюється після приєднання
+    title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    leads: Mapped[list["Lead"]] = relationship(back_populates="source")
+
+
+class Lead(Base):
+    """Знайдений публічний збіг ключового слова — потенційний запит клієнта."""
+
+    __tablename__ = "leads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("lead_sources.id"))
+    keyword_id: Mapped[int] = mapped_column(ForeignKey("lead_keywords.id"))
+    platform_message_id: Mapped[str] = mapped_column(String(64))
+    message_link: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    author_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    text_snippet: Mapped[str] = mapped_column(Text)
+    found_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    notified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    source: Mapped["LeadSource"] = relationship(back_populates="leads")
+    keyword: Mapped["LeadKeyword"] = relationship()
+
+
 class ReminderSettings(Base):
     """Налаштування нагадувань користувача."""
 
