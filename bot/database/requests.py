@@ -156,6 +156,184 @@ async def get_day_for_date(plan: WorkoutPlan, target_date: date) -> WorkoutDay |
     return None
 
 
+async def get_or_create_training_day(
+    session: AsyncSession, plan: WorkoutPlan, target_date: date
+) -> WorkoutDay | None:
+    """Повертає WorkoutDay для дати в межах плану, роблячи його тренувальним:
+    якщо дня ще немає (шаблонний вихідний) — створює порожній тренувальний день,
+    якщо є, але позначений як вихідний — знімає цю позначку. Повертає None, якщо
+    дата виходить за межі тривалості плану (до старту або після його завершення)."""
+    delta_days = (target_date - plan.start_date).days
+    if delta_days < 0:
+        return None
+    week_number = delta_days // 7 + 1
+    if week_number > plan.duration_weeks:
+        return None
+
+    day = await get_day_for_date(plan, target_date)
+    if day is not None:
+        if day.is_rest_day:
+            day.is_rest_day = False
+            session.add(day)
+            await session.commit()
+            await session.refresh(day)
+        return day
+
+    day = WorkoutDay(
+        plan_id=plan.id,
+        week_number=week_number,
+        day_of_week=target_date.weekday(),
+        focus="Додано вручну",
+        is_rest_day=False,
+    )
+    session.add(day)
+    await session.commit()
+    return day
+
+
+async def set_day_rest_status(session: AsyncSession, day_id: int, is_rest: bool) -> None:
+    day = await session.get(WorkoutDay, day_id)
+    if day is not None:
+        day.is_rest_day = is_rest
+        session.add(day)
+        await session.commit()
+
+
+# ---------- Вправи в межах тренувального дня ----------
+
+async def get_day_exercise_by_id(session: AsyncSession, day_exercise_id: int) -> WorkoutDayExercise | None:
+    result = await session.execute(
+        select(WorkoutDayExercise)
+        .where(WorkoutDayExercise.id == day_exercise_id)
+        .options(selectinload(WorkoutDayExercise.exercise))
+    )
+    return result.scalar_one_or_none()
+
+
+async def add_exercise_to_day(
+    session: AsyncSession, day_id: int, exercise_id: int, target_sets: int, target_reps: str
+) -> WorkoutDayExercise:
+    result = await session.execute(
+        select(WorkoutDayExercise.order)
+        .where(WorkoutDayExercise.day_id == day_id)
+        .order_by(WorkoutDayExercise.order.desc())
+        .limit(1)
+    )
+    last_order = result.scalar_one_or_none()
+    day_exercise = WorkoutDayExercise(
+        day_id=day_id,
+        exercise_id=exercise_id,
+        order=(last_order + 1) if last_order is not None else 0,
+        target_sets=target_sets,
+        target_reps=target_reps,
+    )
+    session.add(day_exercise)
+    await session.commit()
+    return day_exercise
+
+
+async def update_day_exercise_targets(
+    session: AsyncSession, day_exercise_id: int, target_sets: int, target_reps: str
+) -> None:
+    day_exercise = await session.get(WorkoutDayExercise, day_exercise_id)
+    if day_exercise is not None:
+        day_exercise.target_sets = target_sets
+        day_exercise.target_reps = target_reps
+        session.add(day_exercise)
+        await session.commit()
+
+
+async def swap_day_exercise(session: AsyncSession, day_exercise_id: int, new_exercise_id: int) -> None:
+    day_exercise = await session.get(WorkoutDayExercise, day_exercise_id)
+    if day_exercise is not None:
+        day_exercise.exercise_id = new_exercise_id
+        session.add(day_exercise)
+        await session.commit()
+
+
+async def delete_day_exercise(session: AsyncSession, day_exercise_id: int) -> None:
+    day_exercise = await session.get(WorkoutDayExercise, day_exercise_id)
+    if day_exercise is not None:
+        await session.delete(day_exercise)
+        await session.commit()
+
+
+# ---------- Позапланові тренування ----------
+
+# Сентинельні значення (не збігаються з жодною реальною календарною датою, де
+# week_number завжди >= 1, а day_of_week — 0..6), щоб зберігати позапланові
+# логи через ту саму схему WorkoutDay/WorkoutDayExercise без міграції БД.
+_ADHOC_WEEK_NUMBER = 0
+_ADHOC_DAY_OF_WEEK = -1
+
+
+async def _get_or_create_adhoc_day(session: AsyncSession, plan_id: int) -> WorkoutDay:
+    result = await session.execute(
+        select(WorkoutDay).where(
+            WorkoutDay.plan_id == plan_id,
+            WorkoutDay.week_number == _ADHOC_WEEK_NUMBER,
+            WorkoutDay.day_of_week == _ADHOC_DAY_OF_WEEK,
+        )
+    )
+    day = result.scalar_one_or_none()
+    if day is not None:
+        return day
+    day = WorkoutDay(
+        plan_id=plan_id,
+        week_number=_ADHOC_WEEK_NUMBER,
+        day_of_week=_ADHOC_DAY_OF_WEEK,
+        focus="Позапланові тренування",
+        is_rest_day=False,
+    )
+    session.add(day)
+    await session.commit()
+    return day
+
+
+async def _get_or_create_adhoc_day_exercise(
+    session: AsyncSession, day_id: int, exercise_id: int
+) -> WorkoutDayExercise:
+    result = await session.execute(
+        select(WorkoutDayExercise).where(
+            WorkoutDayExercise.day_id == day_id, WorkoutDayExercise.exercise_id == exercise_id
+        )
+    )
+    day_exercise = result.scalar_one_or_none()
+    if day_exercise is not None:
+        return day_exercise
+    day_exercise = WorkoutDayExercise(day_id=day_id, exercise_id=exercise_id, order=0)
+    session.add(day_exercise)
+    await session.commit()
+    return day_exercise
+
+
+async def log_adhoc_workout(
+    session: AsyncSession,
+    user_id: int,
+    plan_id: int,
+    exercise_id: int,
+    sets: int,
+    reps: str,
+    weight: float | None,
+) -> WorkoutLog:
+    """Записує позапланове тренування (вправу, якої немає в сьогоднішньому
+    плані) як завершений лог — без прив'язки до конкретного дня розкладу."""
+    day = await _get_or_create_adhoc_day(session, plan_id)
+    day_exercise = await _get_or_create_adhoc_day_exercise(session, day.id, exercise_id)
+    log = WorkoutLog(
+        user_id=user_id,
+        day_exercise_id=day_exercise.id,
+        date=date.today(),
+        completed=True,
+        actual_sets=sets,
+        actual_reps=reps,
+        actual_weight=weight,
+    )
+    session.add(log)
+    await session.commit()
+    return log
+
+
 # ---------- Лог виконання тренувань ----------
 
 async def toggle_workout_log(
