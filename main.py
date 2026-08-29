@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config import load_config
 from bot.database.engine import create_engine_and_sessionmaker, init_db
@@ -36,36 +37,40 @@ async def _seed_exercises(session_maker) -> None:
 
 async def main() -> None:
     config = load_config()
+    logger.info("Режим запуску: BOT_MODE=%s", config.bot_mode)
 
     bot = Bot(token=config.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
 
     engine, session_maker = create_engine_and_sessionmaker(config.database_url)
     await init_db(engine)
-    await _seed_exercises(session_maker)
 
     # session_maker пробрасываем в кожен хендлер через middleware-подібний контекст aiogram
     dp["session_maker"] = session_maker
     dp["admin_ids"] = config.admin_ids
 
-    dp.include_router(start.router)
-    dp.include_router(workout.router)
-    dp.include_router(nutrition.router)
-    dp.include_router(progress.router)
-    dp.include_router(reminders.router)
-    dp.include_router(leadgen_handlers.router)
-    dp.include_router(misc.router)
-
-    scheduler = setup_scheduler(bot, session_maker, config.timezone)
-
+    scheduler = AsyncIOScheduler(timezone=config.timezone)
     monitor: LeadMonitor | None = None
-    if config.tg_api_id and config.tg_api_hash and config.admin_ids:
-        monitor = LeadMonitor(config.tg_api_id, config.tg_api_hash, config.tg_session_name, session_maker)
-        setup_leadgen_scheduler(scheduler, bot, session_maker, config.admin_ids, config.timezone)
-    else:
-        logger.info(
-            "Leadgen: модуль лідогенерації вимкнено (заповніть TG_API_ID/TG_API_HASH/ADMIN_IDS у .env, щоб увімкнути)."
-        )
+
+    if config.bot_mode == "fitness":
+        await _seed_exercises(session_maker)
+        dp.include_router(start.router)
+        dp.include_router(workout.router)
+        dp.include_router(nutrition.router)
+        dp.include_router(progress.router)
+        dp.include_router(reminders.router)
+        dp.include_router(misc.router)
+        setup_scheduler(scheduler, bot, session_maker, config.timezone)
+    else:  # "leadgen"
+        dp.include_router(leadgen_handlers.router)
+        if config.tg_api_id and config.tg_api_hash and config.admin_ids:
+            monitor = LeadMonitor(config.tg_api_id, config.tg_api_hash, config.tg_session_name, session_maker)
+            setup_leadgen_scheduler(scheduler, bot, session_maker, config.admin_ids, config.timezone)
+        else:
+            logger.warning(
+                "Leadgen: не вистачає TG_API_ID/TG_API_HASH/ADMIN_IDS у .env — "
+                "бот запуститься, але моніторинг груп не працюватиме."
+            )
 
     scheduler.start()
 

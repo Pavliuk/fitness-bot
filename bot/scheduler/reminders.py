@@ -62,8 +62,9 @@ async def _tick(bot: Bot, session_maker: async_sessionmaker) -> None:
             logger.exception("Не вдалося надіслати нагадування user_id=%s", user.tg_id)
 
 
-def setup_scheduler(bot: Bot, session_maker: async_sessionmaker, timezone: str) -> AsyncIOScheduler:
-    scheduler = AsyncIOScheduler(timezone=timezone)
+def setup_scheduler(
+    scheduler: AsyncIOScheduler, bot: Bot, session_maker: async_sessionmaker, timezone: str
+) -> None:
     scheduler.add_job(
         _tick,
         trigger=CronTrigger(minute="*", timezone=timezone),
@@ -71,4 +72,3 @@ def setup_scheduler(bot: Bot, session_maker: async_sessionmaker, timezone: str) 
         id="reminders_tick",
         replace_existing=True,
     )
-    return scheduler

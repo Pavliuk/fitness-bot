@@ -42,6 +42,7 @@ def _is_admin(message: Message, admin_ids: list[int]) -> bool:
     return message.from_user is not None and message.from_user.id in admin_ids
 
 
+@router.message(Command("start"))
 @router.message(Command("leads_help"))
 async def cmd_help(message: Message, admin_ids: list[int]):
     if not _is_admin(message, admin_ids):
