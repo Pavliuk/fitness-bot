@@ -9,3 +9,8 @@ venv/
 .idea/
 .vscode/
 docker-compose.override.yml
+
+# Telethon user-сесія лідогенерації — містить дійсні облікові дані акаунта,
+# ніколи не комітити
+*.session
+*.session-journal

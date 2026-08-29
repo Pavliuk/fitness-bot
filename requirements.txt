@@ -5,3 +5,4 @@ APScheduler==3.10.4
 alembic==1.13.3
 python-dotenv==1.0.1
 pydantic==2.9.2
+telethon==1.36.0
