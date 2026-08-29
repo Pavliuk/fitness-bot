@@ -215,6 +215,27 @@ Telegram-акаунт через **Telethon** (MTProto user-сесія) — це
 відповідному файлі — інтеграція з рештою модуля (збереження `Lead`,
 сповіщення, `/leads`) вже готова й не залежить від платформи.
 
+## Деплой на Railway
+
+Репозиторій містить `railway.json` (builder = `Dockerfile`, restart on failure),
+тому деплой — це підключити GitHub-репозиторій і виставити змінні середовища.
+
+1. https://railway.app → **Sign in with GitHub**
+2. **New Project → Deploy from GitHub repo** → оберіть `fitness-bot`, гілку `main`
+3. У вкладці **Variables** додайте ті самі змінні, що й у `.env` (мінімум
+   `BOT_TOKEN`; за потреби — `ADMIN_IDS`, `TG_API_ID`, `TG_API_HASH` для
+   модуля лідогенерації, див. вище)
+4. **Settings → Volumes → New Volume**, mount path `/app/data` — інакше
+   `data/fitness.db` і сесія лідогенерації зникатимуть при кожному передеплої
+5. Деплой запускається автоматично після пуша в `main`; логи — у вкладці
+   **Deployments → View Logs**
+
+Для модуля лідогенерації Telethon-логін інтерактивний (код із SMS), тому
+`scripts/leadgen_login.py` треба один раз виконати локально, а отриманий
+`data/leadgen_session.session` — завантажити у volume на Railway (через
+Railway CLI: `railway run` / `railway ssh`, або тимчасово підключивши volume
+локально).
+
 ## Подальший розвиток (ідеї)
 
 - Анкета рівня активності поза тренуваннями для точнішого розрахунку калорій
