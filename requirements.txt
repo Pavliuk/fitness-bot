@@ -6,4 +6,6 @@ alembic==1.13.3
 python-dotenv==1.0.1
 pydantic==2.9.2
 telethon==1.36.0
-anthropic==1.2.0
+# Пінінг <2.9.0: з 2.9.0 google-genai вимагає pydantic>=2.12.5, що конфліктує
+# з обмеженням aiogram 3.13.1 (pydantic<2.10). Не піднімати без апгрейду aiogram.
+google-genai==2.8.0

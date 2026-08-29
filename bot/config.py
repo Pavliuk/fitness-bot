@@ -21,7 +21,7 @@ class Config:
     tg_api_hash: str | None
     tg_session_name: str
     tg_session_b64: str | None
-    anthropic_api_key: str | None
+    gemini_api_key: str | None
 
 
 def _parse_admin_ids(raw: str) -> list[int]:
@@ -59,5 +59,5 @@ def load_config() -> Config:
         tg_api_hash=(os.getenv("TG_API_HASH") or "").strip() or None,
         tg_session_name=(os.getenv("TG_SESSION_NAME") or "data/leadgen_session").strip(),
         tg_session_b64=(os.getenv("TG_SESSION_B64") or "").strip() or None,
-        anthropic_api_key=(os.getenv("ANTHROPIC_API_KEY") or "").strip() or None,
+        gemini_api_key=(os.getenv("GEMINI_API_KEY") or "").strip() or None,
     )
