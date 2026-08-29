@@ -10,6 +10,7 @@ from bot.database.requests import (
     deactivate_active_plans,
     get_active_plan,
     get_day_for_date,
+    get_exercise_by_id,
     get_logs_for_day,
     get_user_by_tg_id,
     save_set_log,
@@ -22,6 +23,7 @@ from bot.states.registration import WorkoutLogging
 router = Router(name="workout")
 
 WEEKDAY_NAMES = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
+DIFFICULTY_LABELS = {"beginner": "🌱 Початківець", "intermediate": "⚙️ Середній", "advanced": "🏆 Просунутий"}
 
 
 async def _require_registered_user(message_or_cb, session_maker):
@@ -139,6 +141,23 @@ async def toggle_exercise(callback: CallbackQuery, session_maker: async_sessionm
         logs_by_exercise = {log.day_exercise_id: log for log in logs}
     await callback.message.edit_reply_markup(reply_markup=checklist_kb(day.exercises, logs_by_exercise))
     await callback.answer("Оновлено ✅")
+
+
+@router.callback_query(F.data.startswith("exercise_info:"))
+async def show_exercise_info(callback: CallbackQuery, session_maker: async_sessionmaker):
+    exercise_id = int(callback.data.split(":")[1])
+    async with session_maker() as session:
+        exercise = await get_exercise_by_id(session, exercise_id)
+
+    if exercise is None:
+        await callback.answer("Вправу не знайдено", show_alert=True)
+        return
+
+    difficulty_label = DIFFICULTY_LABELS.get(exercise.difficulty.value, exercise.difficulty.value)
+    await callback.message.answer(
+        f"ℹ️ <b>{exercise.name}</b> ({difficulty_label})\n\n{exercise.description}"
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("logset:"))
