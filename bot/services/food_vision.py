@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gemini-2.5-flash"
+_MODEL = "gemini-3.6-flash"
 
 _PROMPT = (
     "Подивись на фото їжі та оціни її поживну цінність для ВСІЄЇ видимої "
