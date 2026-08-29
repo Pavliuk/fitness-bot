@@ -289,4 +289,11 @@ class ReminderSettings(Base):
     lunch_time: Mapped[time] = mapped_column(Time, default=time(13, 0))
     dinner_time: Mapped[time] = mapped_column(Time, default=time(19, 0))
 
+    sleep_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    sleep_time: Mapped[time] = mapped_column(Time, default=time(22, 30))
+
+    # Тихі години: у цьому вікні жодні нагадування (крім самого "час спати") не надсилаються.
+    quiet_start: Mapped[time] = mapped_column(Time, default=time(23, 0))
+    quiet_end: Mapped[time] = mapped_column(Time, default=time(7, 0))
+
     user: Mapped["User"] = relationship(back_populates="reminder_settings")

@@ -39,3 +39,8 @@ class ProductManagement(StatesGroup):
 
 class WeightLogging(StatesGroup):
     waiting_weight = State()
+
+
+class ReminderTimeInput(StatesGroup):
+    waiting_time = State()
+    waiting_water_interval = State()
