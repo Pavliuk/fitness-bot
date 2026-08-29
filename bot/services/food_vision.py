@@ -1,13 +1,14 @@
-"""Оцінка БЖУ/калорійності страви на фото через vision-запит до Claude."""
-import base64
+"""Оцінка БЖУ/калорійності страви на фото через Gemini Vision (безкоштовний рівень)."""
+import json
 import logging
 
-import anthropic
-from pydantic import BaseModel
+from google import genai
+from google.genai import errors, types
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-opus-5"
+_MODEL = "gemini-2.5-flash"
 
 _PROMPT = (
     "Подивись на фото їжі та оціни її поживну цінність для ВСІЄЇ видимої "
@@ -16,7 +17,8 @@ _PROMPT = (
     "страви напиши українською, коротко. Оцінюй реалістично на основі "
     "типового рецепта та видимого розміру порції. У полі note коротко "
     "поясни, на чому базується оцінка, або на що зважати (напр. \"оцінка "
-    "приблизна, соус міг додати калорій\")."
+    "приблизна, соус міг додати калорій\"). Відповідай лише JSON-об'єктом "
+    "без додаткового тексту."
 )
 
 
@@ -37,43 +39,41 @@ class FoodVisionError(Exception):
 async def estimate_nutrition_from_photo(
     image_bytes: bytes, media_type: str = "image/jpeg"
 ) -> NutritionEstimate:
-    image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
-    client = anthropic.AsyncAnthropic()
+    client = genai.Client()  # читає GOOGLE_API_KEY / GEMINI_API_KEY зі середовища
 
     try:
-        response = await client.messages.parse(
+        response = await client.aio.models.generate_content(
             model=_MODEL,
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": media_type, "data": image_b64},
-                    },
-                    {"type": "text", "text": _PROMPT},
-                ],
-            }],
-            output_format=NutritionEstimate,
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=media_type),
+                _PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_json_schema=NutritionEstimate.model_json_schema(),
+            ),
         )
-    except anthropic.AuthenticationError as exc:
-        logger.error("Food vision: немає дійсного ANTHROPIC_API_KEY")
-        raise FoodVisionError(
-            "Розпізнавання фото ще не налаштоване адміністратором бота."
-        ) from exc
-    except anthropic.RateLimitError as exc:
-        raise FoodVisionError(
-            "Забагато запитів на розпізнавання фото зараз, спробуй за хвилину."
-        ) from exc
-    except anthropic.APIConnectionError as exc:
-        raise FoodVisionError(
-            "Немає з'єднання для розпізнавання фото, спробуй пізніше."
-        ) from exc
-    except anthropic.APIStatusError as exc:
-        logger.exception("Food vision: помилка API")
+    except errors.ClientError as exc:
+        if exc.code in (401, 403):
+            logger.error("Food vision: немає дійсного GEMINI_API_KEY")
+            raise FoodVisionError(
+                "Розпізнавання фото ще не налаштоване адміністратором бота."
+            ) from exc
+        if exc.code == 429:
+            raise FoodVisionError(
+                "Забагато запитів на розпізнавання фото зараз, спробуй за хвилину."
+            ) from exc
+        logger.exception("Food vision: помилка API (%s)", exc.code)
+        raise FoodVisionError("Не вдалося розпізнати фото, спробуй ще раз.") from exc
+    except errors.ServerError as exc:
+        logger.exception("Food vision: серверна помилка API")
         raise FoodVisionError("Не вдалося розпізнати фото, спробуй ще раз.") from exc
 
-    estimate = response.parsed_output
-    if estimate is None:
+    if not response.text:
         raise FoodVisionError("Не вдалося розпізнати фото, спробуй ще раз.")
-    return estimate
+
+    try:
+        return NutritionEstimate.model_validate(json.loads(response.text))
+    except (json.JSONDecodeError, ValidationError) as exc:
+        logger.exception("Food vision: не вдалося розпарсити відповідь")
+        raise FoodVisionError("Не вдалося розпізнати фото, спробуй ще раз.") from exc

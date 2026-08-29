@@ -71,9 +71,9 @@ async def main() -> None:
     monitor: LeadMonitor | None = None
 
     if config.bot_mode == "fitness":
-        if not config.anthropic_api_key:
+        if not config.gemini_api_key:
             logger.warning(
-                "Не задано ANTHROPIC_API_KEY — розпізнавання БЖУ за фото не працюватиме, "
+                "Не задано GEMINI_API_KEY — розпізнавання БЖУ за фото не працюватиме, "
                 "решта фітнес-функцій запуститься як зазвичай."
             )
         await _seed_exercises(session_maker)
