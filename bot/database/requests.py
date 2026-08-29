@@ -10,6 +10,7 @@ from bot.database.models import (
     Goal,
     Level,
     Meal,
+    Product,
     ReminderSettings,
     User,
     WeightLog,
@@ -234,6 +235,49 @@ async def get_meals_for_day(session: AsyncSession, user_id: int, target_date: da
         select(Meal).where(Meal.user_id == user_id, Meal.date == target_date)
     )
     return list(result.scalars().all())
+
+
+# ---------- Персональна база продуктів ----------
+
+async def add_product(
+    session: AsyncSession,
+    user_id: int,
+    name: str,
+    calories: float,
+    protein: float,
+    fat: float,
+    carbs: float,
+) -> Product:
+    product = Product(
+        user_id=user_id, name=name, calories=calories, protein=protein, fat=fat, carbs=carbs
+    )
+    session.add(product)
+    await session.commit()
+    await session.refresh(product)
+    return product
+
+
+async def get_products_for_user(session: AsyncSession, user_id: int) -> list[Product]:
+    result = await session.execute(
+        select(Product).where(Product.user_id == user_id).order_by(Product.name)
+    )
+    return list(result.scalars().all())
+
+
+async def get_product_by_id(session: AsyncSession, user_id: int, product_id: int) -> Product | None:
+    result = await session.execute(
+        select(Product).where(Product.id == product_id, Product.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def delete_product(session: AsyncSession, user_id: int, product_id: int) -> bool:
+    product = await get_product_by_id(session, user_id, product_id)
+    if product is None:
+        return False
+    await session.delete(product)
+    await session.commit()
+    return True
 
 
 # ---------- Прогрес ----------

@@ -25,5 +25,17 @@ class NutritionLogging(StatesGroup):
     waiting_carbs = State()
 
 
+class MealFromProduct(StatesGroup):
+    waiting_grams = State()
+
+
+class ProductManagement(StatesGroup):
+    waiting_name = State()
+    waiting_calories = State()
+    waiting_protein = State()
+    waiting_fat = State()
+    waiting_carbs = State()
+
+
 class WeightLogging(StatesGroup):
     waiting_weight = State()
