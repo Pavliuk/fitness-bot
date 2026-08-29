@@ -15,6 +15,7 @@ my.telegram.org) — той самий акаунт, яким користува
 """
 import logging
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from telethon import TelegramClient, events
@@ -46,12 +47,25 @@ class LeadMonitor:
         session_name: str,
         session_maker: async_sessionmaker,
     ) -> None:
+        self._session_path = Path(f"{session_name}.session")
+        # Важливо перевірити ДО створення TelegramClient нижче: сам конструктор
+        # SQLiteSession одразу створює порожній файл .session на диску, тому
+        # exists() після цього моменту завжди повертав би True, навіть для
+        # зовсім неавторизованої сесії.
+        self._had_session_file = self._session_path.exists()
         self._client = TelegramClient(session_name, api_id, api_hash)
         self._session_maker = session_maker
         self._notify: NotifyCallback | None = None
         self._chat_ids: set[int] = set()
 
     async def start(self, notify: NotifyCallback) -> None:
+        if not self._had_session_file:
+            raise RuntimeError(
+                f"Файл сесії {self._session_path} відсутній. Telethon-логін інтерактивний "
+                "і не може пройти в неінтерактивному контейнері: виконайте "
+                "'python scripts/leadgen_login.py' локально і вставте виведений ним "
+                "base64-рядок у змінну середовища TG_SESSION_B64 (див. README)."
+            )
         self._notify = notify
         await self._client.start()
         me = await self._client.get_me()

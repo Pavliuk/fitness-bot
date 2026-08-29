@@ -196,8 +196,10 @@ Telegram-акаунт через **Telethon** (MTProto user-сесія) — це
    ```bash
    python scripts/leadgen_login.py
    ```
-   Файл сесії збережеться в `data/leadgen_session.session` — далі `main.py`
-   підключається до нього без повторних запитів.
+   Файл сесії збережеться в `data/leadgen_session.session` — для локального
+   запуску цього достатньо, `main.py` підключиться до нього без повторних
+   запитів. Скрипт також виведе base64-рядок цієї сесії — знадобиться на
+   кроці деплою на хостинг (`TG_SESSION_B64`, див. розділ Railway нижче).
 7. Запустіть бота і в чаті з новим `MyLeads_bot` (як адмін з `ADMIN_IDS`)
    виконайте:
    ```
@@ -264,11 +266,15 @@ Telegram-акаунт через **Telethon** (MTProto user-сесія) — це
    `DATABASE_URL` (напр. `sqlite+aiosqlite:///./data/leadgen.db`), щоб не
    ділити файл БД із фітнес-сервісом
 3. **Settings → Volumes → New Volume**, mount path `/app/data` — тут
-   зберігається `leadgen.db` і сесія Telethon
-4. Telethon-логін інтерактивний (код із SMS), тому `scripts/leadgen_login.py`
-   виконайте один раз локально, а отриманий `data/leadgen_session.session`
-   завантажте у volume цього сервісу (через Railway CLI: `railway run` /
-   `railway ssh`, або тимчасово підключивши volume локально)
+   зберігається `leadgen.db`
+4. `TG_SESSION_B64` — Telethon-логін інтерактивний (код із SMS) і не може
+   пройти прямо в контейнері Railway, тому виконайте локально:
+   ```bash
+   python scripts/leadgen_login.py
+   ```
+   і вставте виведений ним base64-рядок у цю змінну повністю. Бот сам
+   розпакує його у файл сесії при старті — жодних маніпуляцій із volume
+   через CLI не потрібно.
 
 Обидва сервіси деплояться автоматично після пуша в `main`; логи кожного —
 у його вкладці **Deployments → View Logs**.

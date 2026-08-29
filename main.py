@@ -1,5 +1,6 @@
 """Точка входу бота «Фітнес-тренер»."""
 import asyncio
+import base64
 import json
 import logging
 from pathlib import Path
@@ -35,6 +36,23 @@ async def _seed_exercises(session_maker) -> None:
         await bulk_add_exercises(session, exercises)
 
 
+def _restore_session_from_env(tg_session_name: str, tg_session_b64: str | None) -> None:
+    """Відновлює файл Telethon-сесії з TG_SESSION_B64, якщо він заданий.
+
+    Потрібно для хостингів на кшталт Railway: volume нового сервісу завжди
+    порожній, а Telethon-логін інтерактивний (запитує код із SMS), тому
+    пройти його прямо в контейнері неможливо. Натомість сесію логінять
+    локально (scripts/leadgen_login.py), а її вміст у вигляді base64-рядка
+    просто вставляють як звичайну змінну середовища.
+    """
+    if not tg_session_b64:
+        return
+    session_path = Path(f"{tg_session_name}.session")
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+    session_path.write_bytes(base64.b64decode(tg_session_b64))
+    logger.info("Leadgen: сесію Telethon відновлено з TG_SESSION_B64 -> %s", session_path)
+
+
 async def main() -> None:
     config = load_config()
     logger.info("Режим запуску: BOT_MODE=%s", config.bot_mode)
@@ -64,6 +82,7 @@ async def main() -> None:
     else:  # "leadgen"
         dp.include_router(leadgen_handlers.router)
         if config.tg_api_id and config.tg_api_hash and config.admin_ids:
+            _restore_session_from_env(config.tg_session_name, config.tg_session_b64)
             monitor = LeadMonitor(config.tg_api_id, config.tg_api_hash, config.tg_session_name, session_maker)
             setup_leadgen_scheduler(scheduler, bot, session_maker, config.admin_ids, config.timezone)
         else:
@@ -86,7 +105,16 @@ async def main() -> None:
                     logger.exception("Leadgen: не вдалося сповістити admin_id=%s", admin_id)
 
         if monitor is not None:
-            await monitor.start(_notify_admins)
+            try:
+                await monitor.start(_notify_admins)
+            except Exception:
+                logger.exception(
+                    "Leadgen: не вдалося запустити моніторинг груп — бот продовжить "
+                    "працювати з адмінськими командами, але без пошуку лідів."
+                )
+                monitor = None
+
+        if monitor is not None:
             await asyncio.gather(dp.start_polling(bot), monitor.run_until_disconnected())
         else:
             await dp.start_polling(bot)

@@ -6,14 +6,20 @@
     python scripts/leadgen_login.py
 
 Скрипт запитає номер телефону, код підтвердження з Telegram (і, за потреби,
-пароль двофакторної автентифікації) та збереже файл сесії за шляхом із
-TG_SESSION_NAME (.env). Після цього main.py підключається до вже
-авторизованої сесії без додаткових запитів.
+пароль двофакторної автентифікації), збереже файл сесії за шляхом із
+TG_SESSION_NAME (.env) і виведе його вміст у вигляді base64-рядка.
+
+Для запуску на хостингу (Railway тощо), де контейнер неінтерактивний і не
+може пройти цей логін сам, скопіюйте виведений рядок у змінну середовища
+TG_SESSION_B64 сервісу з лідогенерацією — main.py розпакує його у файл
+сесії автоматично при старті. Для локального запуску нічого копіювати не
+треба — main.py й так знайде файл сесії поруч.
 
 Використовуйте акаунт, яким ви свідомо приєднуєтесь до потрібних публічних
 груп/каналів для лідогенерації — не чужий і не тестовий "про всяк випадок".
 """
 import asyncio
+import base64
 import sys
 from pathlib import Path
 
@@ -36,8 +42,14 @@ async def main() -> None:
     await client.start()
     me = await client.get_me()
     print(f"Готово! Увійшли як {me.first_name} (@{me.username or me.id}).")
-    print(f"Сесію збережено у {config.tg_session_name}.session — тепер можна запускати main.py")
     await client.disconnect()
+
+    session_path = Path(f"{config.tg_session_name}.session")
+    b64 = base64.b64encode(session_path.read_bytes()).decode()
+    print(f"\nСесію збережено локально у {session_path}.")
+    print("\nДля деплою на хостинг скопіюйте рядок нижче цілком у змінну")
+    print("середовища TG_SESSION_B64 сервісу з BOT_MODE=leadgen:\n")
+    print(b64)
 
 
 if __name__ == "__main__":
