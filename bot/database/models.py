@@ -69,6 +69,7 @@ class User(Base):
     workout_plans: Mapped[list["WorkoutPlan"]] = relationship(back_populates="user")
     workout_logs: Mapped[list["WorkoutLog"]] = relationship(back_populates="user")
     meals: Mapped[list["Meal"]] = relationship(back_populates="user")
+    products: Mapped[list["Product"]] = relationship(back_populates="user")
     weight_logs: Mapped[list["WeightLog"]] = relationship(back_populates="user")
     reminder_settings: Mapped["ReminderSettings"] = relationship(
         back_populates="user", uselist=False
@@ -175,6 +176,23 @@ class Meal(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="meals")
+
+
+class Product(Base):
+    """Персональний продукт користувача (БЖУ на 100 г) для швидкого додавання прийомів їжі."""
+
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(128))
+    calories: Mapped[float] = mapped_column(Float, default=0)  # на 100 г
+    protein: Mapped[float] = mapped_column(Float, default=0)
+    fat: Mapped[float] = mapped_column(Float, default=0)
+    carbs: Mapped[float] = mapped_column(Float, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="products")
 
 
 class WeightLog(Base):
