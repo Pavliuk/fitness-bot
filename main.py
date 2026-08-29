@@ -12,7 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from bot.config import load_config
 from bot.database.engine import create_engine_and_sessionmaker, init_db
 from bot.database.requests import bulk_add_exercises
-from bot.handlers import nutrition, progress, reminders, start, workout
+from bot.handlers import misc, nutrition, progress, reminders, start, workout
 from bot.scheduler.reminders import setup_scheduler
 
 logging.basicConfig(
@@ -49,6 +49,7 @@ async def main() -> None:
     dp.include_router(nutrition.router)
     dp.include_router(progress.router)
     dp.include_router(reminders.router)
+    dp.include_router(misc.router)
 
     scheduler = setup_scheduler(bot, session_maker, config.timezone)
     scheduler.start()
