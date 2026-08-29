@@ -15,6 +15,7 @@ from bot.database.requests import (
     get_products_for_user,
     get_user_by_tg_id,
 )
+from bot.services.food_vision import FoodVisionError, estimate_nutrition_from_photo
 from bot.services.nutrition_calc import calculate_daily_targets
 from bot.states.registration import MealFromProduct, NutritionLogging, ProductManagement
 
@@ -40,6 +41,7 @@ async def nutrition_menu(message: Message):
 def _add_meal_source_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="📷 Визначити за фото", callback_data="meal_from_photo")],
             [InlineKeyboardButton(text="📦 Обрати зі своїх продуктів", callback_data="meal_from_products")],
             [InlineKeyboardButton(text="✍️ Ввести вручну", callback_data="meal_manual")],
         ]
@@ -181,6 +183,97 @@ async def meal_targets(callback, session_maker: async_sessionmaker):
         "Це орієнтовний розрахунок за формулою Міффліна-Сан Жеора, "
         "не медична рекомендація."
     )
+    await callback.answer()
+
+
+# ---------- Додавання прийому їжі за фото (розпізнавання БЖУ) ----------
+
+def _photo_confirm_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Зберегти", callback_data="meal_photo_confirm")],
+            [InlineKeyboardButton(text="✍️ Ввести вручну", callback_data="meal_manual")],
+            [InlineKeyboardButton(text="❌ Скасувати", callback_data="meal_photo_cancel")],
+        ]
+    )
+
+
+@router.callback_query(F.data == "meal_from_photo")
+async def start_meal_from_photo(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(NutritionLogging.waiting_photo)
+    await callback.message.answer("Надішли фото своєї страви 📷")
+    await callback.answer()
+
+
+@router.message(NutritionLogging.waiting_photo, F.photo)
+async def meal_photo_received(message: Message, state: FSMContext):
+    status_msg = await message.answer("🔍 Аналізую фото, це займе кілька секунд...")
+
+    photo_io = await message.bot.download(message.photo[-1])
+    image_bytes = photo_io.read()
+
+    try:
+        estimate = await estimate_nutrition_from_photo(image_bytes)
+    except FoodVisionError as exc:
+        await status_msg.edit_text(f"⚠️ {exc}\n\nМожеш ввести дані вручну.")
+        await state.set_state(NutritionLogging.waiting_name)
+        return
+
+    if not estimate.is_food:
+        await status_msg.edit_text(
+            "🤔 Не бачу їжі на цьому фото. Спробуй інше фото або введи дані вручну.",
+            reply_markup=_add_meal_source_kb(),
+        )
+        await state.set_state(None)
+        return
+
+    await state.update_data(
+        photo_name=estimate.food_name,
+        photo_calories=estimate.calories,
+        photo_protein=estimate.protein_g,
+        photo_fat=estimate.fat_g,
+        photo_carbs=estimate.carbs_g,
+    )
+    await status_msg.edit_text(
+        f"📷 Розпізнано: «{estimate.food_name}»\n"
+        f"{estimate.calories:.0f} ккал "
+        f"(Б {estimate.protein_g:.0f} / Ж {estimate.fat_g:.0f} / В {estimate.carbs_g:.0f})\n\n"
+        f"{estimate.note}\n\nЗберегти цей прийом їжі?",
+        reply_markup=_photo_confirm_kb(),
+    )
+
+
+@router.message(NutritionLogging.waiting_photo)
+async def meal_photo_not_a_photo(message: Message):
+    await message.answer("Надішли саме фото 📷 (не текст).")
+
+
+@router.callback_query(F.data == "meal_photo_confirm")
+async def meal_photo_confirm(callback: CallbackQuery, state: FSMContext, session_maker: async_sessionmaker):
+    data = await state.get_data()
+    async with session_maker() as session:
+        user = await get_user_by_tg_id(session, callback.from_user.id)
+        meal = await add_meal(
+            session,
+            user_id=user.id,
+            name=data["photo_name"],
+            calories=data["photo_calories"],
+            protein=data["photo_protein"],
+            fat=data["photo_fat"],
+            carbs=data["photo_carbs"],
+        )
+    await state.clear()
+    await callback.message.edit_text(
+        f"Додано «{meal.name}»: {meal.calories:.0f} ккал "
+        f"(Б {meal.protein:.0f} / Ж {meal.fat:.0f} / В {meal.carbs:.0f}). ✅"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "meal_photo_cancel")
+async def meal_photo_cancel(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("Скасовано.")
     await callback.answer()
 
 

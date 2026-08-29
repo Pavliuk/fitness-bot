@@ -23,6 +23,7 @@ class NutritionLogging(StatesGroup):
     waiting_protein = State()
     waiting_fat = State()
     waiting_carbs = State()
+    waiting_photo = State()
 
 
 class MealFromProduct(StatesGroup):

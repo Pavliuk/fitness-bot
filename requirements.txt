@@ -6,3 +6,4 @@ alembic==1.13.3
 python-dotenv==1.0.1
 pydantic==2.9.2
 telethon==1.36.0
+anthropic==1.2.0

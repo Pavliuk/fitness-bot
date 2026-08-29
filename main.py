@@ -71,6 +71,11 @@ async def main() -> None:
     monitor: LeadMonitor | None = None
 
     if config.bot_mode == "fitness":
+        if not config.anthropic_api_key:
+            logger.warning(
+                "Не задано ANTHROPIC_API_KEY — розпізнавання БЖУ за фото не працюватиме, "
+                "решта фітнес-функцій запуститься як зазвичай."
+            )
         await _seed_exercises(session_maker)
         dp.include_router(start.router)
         dp.include_router(workout.router)
