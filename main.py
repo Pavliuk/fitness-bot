@@ -14,7 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from bot.config import load_config
 from bot.database.engine import create_engine_and_sessionmaker, init_db
 from bot.database.requests import bulk_add_exercises
-from bot.handlers import misc, nutrition, progress, reminders, start, workout
+from bot.handlers import nutrition, progress, reminders, start, workout
 from bot.leadgen import handlers as leadgen_handlers
 from bot.leadgen.scheduler import setup_leadgen_scheduler
 from bot.leadgen.telegram_monitor import LeadMonitor
@@ -82,7 +82,6 @@ async def main() -> None:
         dp.include_router(nutrition.router)
         dp.include_router(progress.router)
         dp.include_router(reminders.router)
-        dp.include_router(misc.router)
         setup_scheduler(scheduler, bot, session_maker, config.timezone)
     else:  # "leadgen"
         dp.include_router(leadgen_handlers.router)
