@@ -46,8 +46,7 @@ fitness-bot/
 │   └── config.py
 ├── alembic/             # міграції БД
 ├── assets/              # статичні дані, що йдуть в образ (НЕ монтуються volume'ом)
-│   ├── exercises.json   # база вправ
-│   └── media/           # мотиваційне відео тощо
+│   └── exercises.json   # база вправ
 ├── data/                # runtime-стан: fitness.db, сесія лідогенерації (монтується volume'ом)
 ├── scripts/
 │   └── leadgen_login.py # одноразовий вхід у Telegram user-сесію лідогенерації
