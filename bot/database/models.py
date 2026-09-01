@@ -66,6 +66,9 @@ class User(Base):
     is_registered: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    # Джерело трафіку з параметра ?start= диплінку (напр. fb_ads, ig_ads) — для оцінки реклами
+    acquisition_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     workout_plans: Mapped[list["WorkoutPlan"]] = relationship(back_populates="user")
     workout_logs: Mapped[list["WorkoutLog"]] = relationship(back_populates="user")
     meals: Mapped[list["Meal"]] = relationship(back_populates="user")

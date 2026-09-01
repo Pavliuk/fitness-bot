@@ -1,7 +1,7 @@
 """Допоміжні функції доступу до БД (простий шар "репозиторію")."""
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,11 +23,13 @@ from bot.database.models import (
 
 # ---------- Користувачі ----------
 
-async def get_or_create_user(session: AsyncSession, tg_id: int, username: str | None) -> User:
+async def get_or_create_user(
+    session: AsyncSession, tg_id: int, username: str | None, source: str | None = None
+) -> User:
     result = await session.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     if user is None:
-        user = User(tg_id=tg_id, username=username)
+        user = User(tg_id=tg_id, username=username, acquisition_source=source)
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -37,6 +39,18 @@ async def get_or_create_user(session: AsyncSession, tg_id: int, username: str | 
 async def get_user_by_tg_id(session: AsyncSession, tg_id: int) -> User | None:
     result = await session.execute(select(User).where(User.tg_id == tg_id))
     return result.scalar_one_or_none()
+
+
+async def get_acquisition_stats(session: AsyncSession) -> list[tuple[str, int, int]]:
+    """Кількість користувачів і завершених реєстрацій по кожному джерелу трафіку."""
+    result = await session.execute(
+        select(
+            func.coalesce(User.acquisition_source, "(без джерела)"),
+            func.count(User.id),
+            func.sum(cast(User.is_registered, Integer)),
+        ).group_by(User.acquisition_source)
+    )
+    return [(source, total, registered or 0) for source, total, registered in result.all()]
 
 
 async def save_registration(

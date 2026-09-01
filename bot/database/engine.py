@@ -14,6 +14,9 @@ _NEW_COLUMNS: dict[str, dict[str, str]] = {
         "quiet_start": "TIME DEFAULT '23:00:00'",
         "quiet_end": "TIME DEFAULT '07:00:00'",
     },
+    "users": {
+        "acquisition_source": "VARCHAR(64)",
+    },
 }
 
 
