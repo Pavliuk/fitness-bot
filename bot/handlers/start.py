@@ -1,12 +1,12 @@
 """Команда /start та FSM-анкета реєстрації користувача."""
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from bot.database.models import Gender, Goal, Level
-from bot.database.requests import get_or_create_user, save_registration
+from bot.database.requests import get_acquisition_stats, get_or_create_user, save_registration
 from bot.keyboards.common import main_menu_kb
 from bot.keyboards.registration import gender_kb, goal_kb, level_kb
 from bot.states.registration import Registration
@@ -15,9 +15,18 @@ router = Router(name="start")
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext, session_maker: async_sessionmaker):
+async def cmd_start(
+    message: Message,
+    state: FSMContext,
+    session_maker: async_sessionmaker,
+    command: CommandObject,
+):
+    # ?start=fb_ads / ?start=ig_ads у посиланні на бота — джерело трафіку з реклами
+    source = command.args[:64] if command.args else None
     async with session_maker() as session:
-        user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
+        user = await get_or_create_user(
+            session, message.from_user.id, message.from_user.username, source=source
+        )
 
     if user.is_registered:
         await message.answer(
@@ -121,3 +130,17 @@ async def process_level(
         reply_markup=main_menu_kb(),
     )
     await callback.answer()
+
+
+@router.message(Command("traffic"))
+async def cmd_traffic(message: Message, admin_ids: list[int], session_maker: async_sessionmaker):
+    """Адмінська команда: скільки людей прийшло з кожного джерела (?start=...) і скільки з них зареєструвались."""
+    if message.from_user is None or message.from_user.id not in admin_ids:
+        return
+    async with session_maker() as session:
+        stats = await get_acquisition_stats(session)
+    if not stats:
+        await message.answer("Поки що немає жодного користувача.")
+        return
+    lines = [f"{source}: {registered}/{total} завершили реєстрацію" for source, total, registered in stats]
+    await message.answer("<b>Джерела трафіку:</b>\n" + "\n".join(lines))
